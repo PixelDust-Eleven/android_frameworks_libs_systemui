@@ -7,7 +7,6 @@ import static com.android.launcher3.icons.ShadowGenerator.BLUR_FACTOR;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -40,9 +39,6 @@ public class BaseIconFactory implements AutoCloseable {
     static final boolean ATLEAST_P = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P;
 
     private static final float ICON_BADGE_SCALE = 0.444f;
-
-    public static final String KEY_PREF_LEGACY_ICON_MASK = "pref_legacy_icon_mask";
-    public static final String SHARED_PREFERENCES_KEY = "com.android.launcher3.prefs";
 
     private final Rect mOldBounds = new Rect();
     protected final Context mContext;
@@ -232,10 +228,8 @@ public class BaseIconFactory implements AutoCloseable {
             return null;
         }
         float scale = 1f;
-        SharedPreferences prefs = mContext.getSharedPreferences(
-                "com.android.launcher3.prefs", Context.MODE_PRIVATE);
-        boolean defaultIcons = prefs.getString("pref_iconPackPackage", "").isEmpty();
-        if (shrinkNonAdaptiveIcons && ATLEAST_OREO && defaultIcons) {
+
+        if (shrinkNonAdaptiveIcons && ATLEAST_OREO) {
             if (mWrapperIcon == null) {
                 mWrapperIcon = mContext.getDrawable(R.drawable.adaptive_icon_drawable_wrapper)
                         .mutate();
@@ -244,7 +238,8 @@ public class BaseIconFactory implements AutoCloseable {
             dr.setBounds(0, 0, 1, 1);
             boolean[] outShape = new boolean[1];
             scale = getNormalizer().getScale(icon, outIconBounds, dr.getIconMask(), outShape);
-            if (!(icon instanceof AdaptiveIconDrawable) && !outShape[0]) {
+            if (!(icon instanceof AdaptiveIconDrawable) && !outShape[0]
+                    && (icon.getChangingConfigurations() & CONFIG_HINT_NO_WRAP) == 0) {
                 FixedScaleDrawable fsd = ((FixedScaleDrawable) dr.getForeground());
                 fsd.setDrawable(icon);
                 fsd.setScale(scale);
@@ -371,16 +366,6 @@ public class BaseIconFactory implements AutoCloseable {
 
     private int extractColor(Bitmap bitmap) {
         return mDisableColorExtractor ? 0 : mColorExtractor.findDominantColorByHue(bitmap);
-    }
-
-    private static boolean forceLegacyIconMask(Context context) {
-        SharedPreferences prefs = getPrefs(context.getApplicationContext());
-        return prefs.getBoolean(KEY_PREF_LEGACY_ICON_MASK, false);
-    }
-
-    public static SharedPreferences getPrefs(Context context) {
-        return context.getSharedPreferences(
-                SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
     }
 
     /**
